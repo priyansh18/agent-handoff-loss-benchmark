@@ -1,0 +1,9 @@
+Here is an incident report and a draft extraction. Check the draft against the report and correct
+any field that is incomplete or wrong. Return corrected JSON only, with keys "root_cause",
+"affected_component", "fix_action".
+
+Report:
+<report text inserted here>
+
+Draft JSON:
+<executor's JSON inserted here>

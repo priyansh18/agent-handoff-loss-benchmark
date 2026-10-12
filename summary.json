@@ -1,0 +1,18 @@
+{
+  "condition_a": {
+    "field_accuracy": "30/36",
+    "field_accuracy_pct": 83.3,
+    "tasks_all3_correct": "7/12",
+    "total_tokens": 1659,
+    "total_time_s": 72.7
+  },
+  "condition_b": {
+    "field_accuracy": "33/36",
+    "field_accuracy_pct": 91.7,
+    "tasks_all3_correct": "9/12",
+    "total_tokens": 7323,
+    "total_time_s": 411.1
+  },
+  "handoff_loss_tasks": 12,
+  "total_tasks": 12
+}

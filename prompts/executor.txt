@@ -1,0 +1,6 @@
+Read the incident report and extract three fields as JSON only, with keys "root_cause",
+"affected_component", "fix_action". Investigation focus hint: "<focus_hint inserted here,
+max 60 chars, derived from the planner's note>". No explanation, just the JSON object.
+
+Report:
+<report text inserted here>

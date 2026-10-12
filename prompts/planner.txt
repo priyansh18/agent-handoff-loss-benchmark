@@ -1,0 +1,5 @@
+You are investigating an incident. Write a short investigation note (2-3 sentences) describing
+what to look for, based on this report. Do not answer yet, just describe your investigation plan.
+
+Report:
+<report text inserted here>
