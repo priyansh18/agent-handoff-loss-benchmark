@@ -17,11 +17,13 @@ incident-report extraction tasks.
 | Total tokens | 1,659 | 7,323 (4.4x) |
 | Wall-clock time | 72.7s | 411.1s (5.7x) |
 
-On **12 of 12 tasks**, the planner's full investigation notes (150-550+ characters) were
-truncated to a 60-character fragment before the executor subgraph ever saw them -- a real
-LangGraph state-schema mismatch, not a prompt bug. See `methodology.md` for exactly how, and
-`analysis.md` for where the pipeline's accuracy gain actually came from (it is more specific than
-"multi-agent wins").
+On **12 of 12 tasks**, the planner's full investigation notes (368-584 characters) were
+truncated to a 60-character fragment before the executor ever saw them -- a real state-schema
+mismatch, modeled in plain Python rather than an actual LangGraph `StateGraph` run (see
+`methodology.md`). The executor stage alone, before any reviewer pass, already reaches 88.9%
+(32/36) -- see `analysis.md` for exactly which fields flipped, at which stage, and the one honest
+complication (one of the three fixes happened with a hint that, by accident, did contain a useful
+phrase).
 
 ## Run it yourself
 
@@ -54,7 +56,8 @@ Only the Python standard library is used (`urllib`, `json`, `re`). No `requireme
 ## Limitations (stated here, not hidden)
 
 - One deterministic run per condition (temperature 0, fixed seed), not a repeated-trial
-  distribution. A single flipped task moves the accuracy numbers by one unit either way.
+  distribution. A single flipped field moves the accuracy numbers by one unit out of 36
+  (2.8 percentage points) either way.
 - The grader is keyword-based (a field counts correct if the answer contains at least one
   required keyword). This rewards completeness over precision -- see `methodology.md`.
 - The 12 tasks are synthetic fixtures written for this benchmark, not real production incidents.

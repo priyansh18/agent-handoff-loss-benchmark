@@ -2,35 +2,46 @@
 
 ## Where the accuracy gain actually came from
 
-Two tasks flipped from wrong (missing `root_cause`) under the single call to fully correct under
-the pipeline: `redis-pool` and `retry-storm`. `raw_results.jsonl` logs the executor's intermediate
-answer separately from the reviewer's final answer, so it is possible to check exactly which step
-produced each fix rather than assuming it was the reviewer.
+Three individual fields, across three different tasks, flipped from wrong to right between
+Condition A (single call) and Condition B (the pipeline): `redis-pool`, `retry-storm`, and
+`feature-flag-leak`. `raw_results.jsonl` logs the executor's intermediate answer separately from
+the reviewer's final answer for every task, specifically so it is possible to check which step
+produced each fix rather than assuming.
 
-- **`redis-pool`**: the executor's own answer (before the reviewer ever saw it) already named
-  "Redis connection pool exhaustion" correctly. The 60-character `focus_hint` it received was cut
-  off mid-sentence and contributed nothing useful -- the executor recovered the right answer by
-  reading the full original report, which it was given in addition to the degraded hint.
-- **`retry-storm`**: the executor's answer was wrong ("downstream outage", missing "retry storm").
-  The reviewer step, re-reading the full report a second time, corrected it to "downstream outage
-  caused a retry storm" and passed.
+The executor stage alone, before the reviewer ever runs, already scores **32/36 (88.9%)** --
+measured directly from the saved `executor_answer` field, not inferred. The reviewer's final pass
+adds exactly one more field, to 33/36 (91.7%). Two of the three fixes happened at the executor
+stage; one needed the reviewer.
 
-So the two flips are not both "the reviewer did it." One flip happened at the executor stage
-despite the broken hint, and one needed the reviewer's second pass. What they share is the real
-finding: **both corrections trace to a step reading the original source report closely, never to
-anything the planner's truncated note carried across the subgraph boundary.** The planner step,
-measured against what it produced, earned nothing this run -- not because planning is inherently
-useless, but because this pipeline's state schema discarded the planner's output before the next
-step could use it.
+They also did not all resolve the same way with respect to the planner's hint:
+
+- **`feature-flag-leak`** (see `failure_examples/feature-flag-leak-flip.md`): the hint that
+  crossed the boundary was 100% boilerplate preamble -- zero task-specific content. The executor
+  still got `root_cause` right, from reading the full original report.
+- **`retry-storm`** (see `failure_examples/retry-storm-flip.md`): the hint was semi-generic
+  ("review the system logs"), not pure boilerplate but not specific either. The executor still
+  got it wrong. The reviewer, re-reading the full report a second time, corrected it. This is the
+  one fix that specifically needed the reviewer.
+- **`redis-pool`** (see `failure_examples/redis-pool-flip.md`): the honest complication. This
+  hint happened to contain "Redis connection pool" -- the exact phrase the grader needed --
+  because the planner's sentence led with it before the 60-character cutoff landed. This fix
+  cannot be cleanly attributed to "re-reading beat the hint," since the hint itself carried the
+  right words this time, by accident of sentence structure rather than by design.
 
 ## What this does and does not support
 
+Put together: two of the three fixes happened with hints that demonstrably contributed nothing,
+and the executor's own full-report read (independent of the hint) already accounts for most of
+the pipeline's total gain (32/36 of the 33/36 final score). The planner step, measured honestly,
+did not earn anything *reliable* this run -- its one plausible contribution (`redis-pool`)
+depended on where a sentence happened to break, not on the architecture working as designed.
+
 A 12-task local run on one model is not evidence that multi-agent pipelines are generally good or
 bad. What it does support, narrowly: a step that gives a model a second, focused look at the
-original source material can catch mistakes a first pass makes, and that is a real, measurable
-effect here (83.3% -> 91.7% field accuracy) -- paid for at 4.4x the tokens and 5.7x the latency.
-A planning step whose output does not survive its own pipeline's state schema is not free: it
-still costs a full LLM call, and in this run it demonstrably changed nothing.
+original source material can catch mistakes a first pass makes, and that effect is real here
+(83.3% -> 91.7% field accuracy) -- paid for at 4.4x the tokens and 5.7x the latency. A planning
+step whose output does not survive its own pipeline's state schema is not free: it still costs a
+full LLM call, and in this run it demonstrably changed nothing reliable.
 
 Before adding a planning step to any real pipeline, the concrete, checkable question is not
 "would more structure help" -- it is "what, specifically, needs to survive from this step to the
@@ -47,6 +58,19 @@ across sessions on this machine -- it was gone before this repository existed, a
 recovered or verified. Rather than publish numbers that can no longer be substantiated, the
 article was updated to use this run's numbers, which are the ones in this repository, fully
 re-runnable from `tasks.py` and `run_bench.py`. The direction and shape of the finding (pipeline
-beats single-call; handoff loss on every task; the gain traces to source re-reading, not the
-planner) held across both runs. The specific percentages did not, which is exactly why they are
-not worth trusting unless they are saved somewhere durable the first time.
+beats single-call; handoff loss on every task; the gain traces mostly to source re-reading, not
+the planner) held across both runs. The specific percentages did not, which is exactly why they
+are not worth trusting unless they are saved somewhere durable the first time.
+
+## A second process note: an independent fact-check caught real errors here too
+
+An independent Codex pass fact-checked this experiment's first write-up (before this file's
+current version) and found genuine problems beyond the numbers: the retry-storm planner note and
+hint quoted in the draft and diagram were hand-paraphrased to match the fixture's theme instead of
+pulled verbatim from `raw_results.jsonl`; a third flipped field (`feature-flag-leak`) was missed
+because only tasks that flipped to "all 3 fields correct" were checked, not every individual field
+delta; and the claim that the `redis-pool` hint was "useless" was flatly wrong -- it contains the
+exact phrase needed. All three are fixed in this version: the diagram (`make_handoff_diagram.py`)
+now reads `raw_results.jsonl` programmatically instead of hardcoding quoted text, all three flips
+have their own `failure_examples/` file, and `redis-pool-flip.md` states the complication plainly
+instead of silently dropping it.
